@@ -1,0 +1,20 @@
+{
+  "id": "brp-statblock-converter",
+  "title": "BRP StatBlock Converter",
+  "description": "A tool to convert BRP statblocks into Foundry VTT compatible JSON. Open from the module settings.",
+  "version": "0.1.0",
+  "compatibility": {
+    "minimum": "11",
+    "verified": "13"
+  },
+  "esmodules": [],
+  "packs": [],
+  "authors": [
+    {
+      "name": "Grugg2 + Grok"
+    }
+  ],
+  "url": "https://github.com/Grugg2/Foundry-PF1-StatBlock-ConverterBRP",
+  "manifest": "https://raw.githubusercontent.com/Grugg2/Foundry-PF1-StatBlock-ConverterBRP/main/module.json",
+  "download": "https://github.com/Grugg2/Foundry-PF1-StatBlock-ConverterBRP/archive/refs/heads/main.zip"
+}

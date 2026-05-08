@@ -3,25 +3,43 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>BRP StatBlock Converter</title>
+    <title>BRP StatBlock Converter v2</title>
     <style>
-        body { font-family: Arial, sans-serif; max-width: 900px; margin: 20px auto; padding: 20px; background: #1a1a1a; color: #eee; }
+        body { font-family: Arial, sans-serif; max-width: 1000px; margin: 20px auto; padding: 20px; background: #1a1a1a; color: #eee; }
         h1 { color: #ffcc00; }
-        textarea { width: 100%; height: 300px; font-family: monospace; background: #2a2a2a; color: #0f0; border: 1px solid #555; }
-        button { padding: 12px 24px; font-size: 16px; background: #ffcc00; color: #000; border: none; cursor: pointer; }
+        textarea { width: 100%; height: 280px; font-family: monospace; background: #2a2a2a; color: #0f0; border: 1px solid #555; padding: 10px; }
+        button { padding: 12px 24px; font-size: 16px; background: #ffcc00; color: #000; border: none; cursor: pointer; margin: 10px 0; }
         button:hover { background: #ffaa00; }
-        #output { width: 100%; height: 400px; font-family: monospace; background: #2a2a2a; color: #0f0; border: 1px solid #555; }
+        #output { width: 100%; height: 420px; font-family: monospace; background: #2a2a2a; color: #0f0; border: 1px solid #555; padding: 10px; }
+        .example { background: #333; padding: 15px; margin: 15px 0; border-left: 4px solid #ffcc00; }
     </style>
 </head>
 <body>
-    <h1>BRP StatBlock Converter</h1>
-    <p>Paste a BRP-style statblock below and click Convert. Uses (SIZ + CON) × 0.5 for HP.</p>
+    <h1>BRP StatBlock Converter v2</h1>
+    <p>Paste a BRP-style statblock. Uses (SIZ + CON) × 0.5 for HP.</p>
     
-    <textarea id="input" placeholder="Paste statblock here... (Example: NAME: Moray Eel\nSTR 12\nCON 14\nSIZ 12\n etc.)"></textarea>
-    <br><br>
+    <div class="example">
+        <strong>Example Format:</strong><br>
+        NAME: Moray Eel<br>
+        STR 12<br>
+        CON 14<br>
+        SIZ 12<br>
+        DEX 17<br>
+        INT 4<br>
+        POW 11<br>
+        CHA 7<br>
+        EDU 0<br>
+        HP 13<br>
+        Move 13 (swim)<br>
+        Bite 70% 1d8 + venom<br>
+        Stealth 90%<br>
+    </div>
+
+    <textarea id="input" placeholder="Paste statblock here..."></textarea>
+    <br>
     <button onclick="convertToBRP()">Convert to Foundry JSON</button>
     
-    <h3>Output JSON (Copy & Paste into Foundry):</h3>
+    <h3>Output JSON (Copy this into Foundry):</h3>
     <textarea id="output" readonly></textarea>
 
     <script>
@@ -31,24 +49,75 @@
             
             let name = "Unknown Creature";
             let str = 10, con = 10, siz = 10, dex = 10, int = 10, pow = 10, cha = 10, edu = 0;
+            let hp = 0, move = 8;
+            let skills = {};
+            let weapons = [];
             
             lines.forEach(line => {
-                const clean = line.trim().toUpperCase();
-                if (clean.startsWith("NAME:")) {
-                    name = line.split(":")[1].trim();
+                const clean = line.trim();
+                const upper = clean.toUpperCase();
+                
+                if (upper.startsWith("NAME:")) {
+                    name = clean.split(":")[1].trim();
                 }
-                if (clean.startsWith("STR")) str = parseInt(line.match(/\d+/)) || 10;
-                if (clean.startsWith("CON")) con = parseInt(line.match(/\d+/)) || 10;
-                if (clean.startsWith("SIZ")) siz = parseInt(line.match(/\d+/)) || 10;
-                if (clean.startsWith("DEX")) dex = parseInt(line.match(/\d+/)) || 10;
-                if (clean.startsWith("INT")) int = parseInt(line.match(/\d+/)) || 10;
-                if (clean.startsWith("POW")) pow = parseInt(line.match(/\d+/)) || 10;
-                if (clean.startsWith("CHA")) cha = parseInt(line.match(/\d+/)) || 10;
-                if (clean.startsWith("EDU")) edu = parseInt(line.match(/\d+/)) || 0;
+                
+                // Characteristics
+                const statMatch = clean.match(/^([A-Z]{3})\s+(\d+)/i);
+                if (statMatch) {
+                    const stat = statMatch[1].toLowerCase();
+                    const val = parseInt(statMatch[2]);
+                    if (['str','con','siz','dex','int','pow','cha','edu'].includes(stat)) {
+                        eval(stat + ' = ' + val);
+                    }
+                }
+                
+                // HP
+                if (upper.startsWith("HP")) {
+                    hp = parseInt(clean.match(/\d+/)) || 0;
+                }
+                
+                // Move
+                if (upper.startsWith("MOVE")) {
+                    move = parseInt(clean.match(/\d+/)) || 8;
+                }
+                
+                // Skills (e.g. Stealth 90%)
+                const skillMatch = clean.match(/^([A-Za-z ]+)\s+(\d+)%/);
+                if (skillMatch) {
+                    const skillName = skillMatch[1].trim().toLowerCase().replace(/\s+/g, "-");
+                    skills[skillName] = parseInt(skillMatch[2]);
+                }
+                
+                // Weapons (e.g. Bite 70% 1d8 + venom)
+                const weaponMatch = clean.match(/^([A-Za-z ]+)\s+(\d+)%\s+([\d]+d[\d]+)/);
+                if (weaponMatch) {
+                    weapons.push({
+                        name: weaponMatch[1].trim(),
+                        skill: parseInt(weaponMatch[2]),
+                        damage: weaponMatch[3]
+                    });
+                }
             });
 
-            const hp = Math.floor((siz + con) * 0.5);
+            // Calculate HP if not provided
+            if (!hp) hp = Math.floor((siz + con) * 0.5);
             
+            // Build skills object
+            const skillObj = {};
+            Object.keys(skills).forEach(key => {
+                skillObj[key] = skills[key];
+            });
+            
+            // Build weapons
+            const weaponItems = weapons.map(w => ({
+                name: w.name,
+                type: "weapon",
+                system: {
+                    damage: w.damage,
+                    skill: w.skill
+                }
+            }));
+
             const json = {
                 name: name,
                 type: "npc",
@@ -57,11 +126,13 @@
                     derived: { 
                         hp: hp, 
                         mp: pow, 
-                        move: 8, 
+                        move: move, 
                         fatigue: (str + con) 
                     },
-                    description: "Converted using BRP StatBlock Converter"
-                }
+                    skills: skillObj,
+                    description: "Converted using BRP StatBlock Converter v2"
+                },
+                items: weaponItems
             };
 
             document.getElementById('output').value = JSON.stringify(json, null, 2);

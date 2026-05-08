@@ -1,0 +1,71 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>BRP StatBlock Converter</title>
+    <style>
+        body { font-family: Arial, sans-serif; max-width: 900px; margin: 20px auto; padding: 20px; background: #1a1a1a; color: #eee; }
+        h1 { color: #ffcc00; }
+        textarea { width: 100%; height: 300px; font-family: monospace; background: #2a2a2a; color: #0f0; border: 1px solid #555; }
+        button { padding: 12px 24px; font-size: 16px; background: #ffcc00; color: #000; border: none; cursor: pointer; }
+        button:hover { background: #ffaa00; }
+        #output { width: 100%; height: 400px; font-family: monospace; background: #2a2a2a; color: #0f0; border: 1px solid #555; }
+    </style>
+</head>
+<body>
+    <h1>BRP StatBlock Converter</h1>
+    <p>Paste a BRP-style statblock below and click Convert. Uses (SIZ + CON) × 0.5 for HP.</p>
+    
+    <textarea id="input" placeholder="Paste statblock here... (Example: NAME: Moray Eel\nSTR 12\nCON 14\nSIZ 12\n etc.)"></textarea>
+    <br><br>
+    <button onclick="convertToBRP()">Convert to Foundry JSON</button>
+    
+    <h3>Output JSON (Copy & Paste into Foundry):</h3>
+    <textarea id="output" readonly></textarea>
+
+    <script>
+        function convertToBRP() {
+            const input = document.getElementById('input').value;
+            const lines = input.split('\n');
+            
+            let name = "Unknown Creature";
+            let str = 10, con = 10, siz = 10, dex = 10, int = 10, pow = 10, cha = 10, edu = 0;
+            
+            lines.forEach(line => {
+                const clean = line.trim().toUpperCase();
+                if (clean.startsWith("NAME:")) {
+                    name = line.split(":")[1].trim();
+                }
+                if (clean.startsWith("STR")) str = parseInt(line.match(/\d+/)) || 10;
+                if (clean.startsWith("CON")) con = parseInt(line.match(/\d+/)) || 10;
+                if (clean.startsWith("SIZ")) siz = parseInt(line.match(/\d+/)) || 10;
+                if (clean.startsWith("DEX")) dex = parseInt(line.match(/\d+/)) || 10;
+                if (clean.startsWith("INT")) int = parseInt(line.match(/\d+/)) || 10;
+                if (clean.startsWith("POW")) pow = parseInt(line.match(/\d+/)) || 10;
+                if (clean.startsWith("CHA")) cha = parseInt(line.match(/\d+/)) || 10;
+                if (clean.startsWith("EDU")) edu = parseInt(line.match(/\d+/)) || 0;
+            });
+
+            const hp = Math.floor((siz + con) * 0.5);
+            
+            const json = {
+                name: name,
+                type: "npc",
+                system: {
+                    characteristics: { str, con, siz, dex, int, pow, cha, edu },
+                    derived: { 
+                        hp: hp, 
+                        mp: pow, 
+                        move: 8, 
+                        fatigue: (str + con) 
+                    },
+                    description: "Converted using BRP StatBlock Converter"
+                }
+            };
+
+            document.getElementById('output').value = JSON.stringify(json, null, 2);
+        }
+    </script>
+</body>
+</html>
